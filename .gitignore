@@ -1,6 +1,5 @@
-/*.lock
-/_site/
-.idea/
-*.iml
-*.swp
-/.jekyll-metadata
+_site
+.sass-cache
+.jekyll-cache
+Gemfile.lock
+*.gem
