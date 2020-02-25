@@ -20,7 +20,7 @@
 
     <groupId>za.co.absa.spline</groupId>
     <artifactId>parent</artifactId>
-    <version>0.4.1</version>
+    <version>0.4.2</version>
 
     <packaging>pom</packaging>
 
@@ -34,7 +34,7 @@
         <connection>scm:git:git://github.com/AbsaOSS/spline.git</connection>
         <developerConnection>scm:git:ssh://github.com:AbsaOSS/spline.git</developerConnection>
         <url>http://github.com/AbsaOSS/spline/tree/master</url>
-        <tag>release/0.4.1</tag>
+        <tag>release/0.4.2</tag>
     </scm>
 
     <licenses>
@@ -476,6 +476,11 @@
                 <groupId>com.databricks</groupId>
                 <artifactId>spark-xml_${scala.compat.version}</artifactId>
                 <version>0.4.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.crealytics</groupId>
+                <artifactId>spark-excel_${scala.compat.version}</artifactId>
+                <version>0.12.5</version>
             </dependency>
             <dependency>
                 <groupId>io.delta</groupId>
