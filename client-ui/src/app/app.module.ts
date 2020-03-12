@@ -17,8 +17,10 @@
 import {HttpClientModule} from '@angular/common/http';
 import {APP_INITIALIZER, NgModule} from '@angular/core';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
-import {MatExpansionModule} from '@angular/material';
+import {MatExpansionModule} from '@angular/material/expansion';
 import {MatSlideToggleModule} from '@angular/material/slide-toggle';
+import {MatChipsModule} from "@angular/material/chips";
+import {MatIconModule} from "@angular/material/icon";
 import {BrowserModule} from '@angular/platform-browser';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {RouterModule} from '@angular/router';
@@ -91,7 +93,6 @@ import {PropertyErrorComponent} from './components/lineage/lineage-details/opera
 import {attributeLineageGraphReducer} from "./store/reducers/attribute-lineage-graph.reducer";
 import {AttributeLineageGraphEffects} from "./effects/attribute-lineage-graph.effects";
 
-
 export function initializeApp(store: Store<AppState>): () => Promise<any> {
   return () => new Promise(resolve => {
     store.dispatch(new ConfigActions.StartAppInitializer())
@@ -157,7 +158,6 @@ const ROOT_ROUTING = "app/"
     GenericComponent
   ],
   imports: [
-    MatSlideToggleModule,
     BrowserAnimationsModule,
     NgbModule,
     PrettyJsonModule,
@@ -171,7 +171,10 @@ const ROOT_ROUTING = "app/"
     BsDatepickerModule.forRoot(),
     DatepickerModule.forRoot(),
     ReactiveFormsModule,
+    MatSlideToggleModule,
     MatExpansionModule,
+    MatChipsModule,
+    MatIconModule,
     ModalModule.forRoot(),
     ToastrModule.forRoot(),
     StoreModule.forRoot({
