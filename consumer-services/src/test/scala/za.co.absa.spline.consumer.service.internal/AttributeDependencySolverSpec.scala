@@ -50,9 +50,9 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
     )
 
     val operations = Seq(op, in, out)
-    assertResolvedEquals(operations, A, Set.empty, Set(A -> 0))
-    assertResolvedEquals(operations, B, Set.empty, Set(B -> 0))
-    assertResolvedEquals(operations, C, Set(C -> A, C -> B), Set(C -> 1, A -> 0, B -> 0))
+    assertResolvedEquals(operations, A, Seq.empty, Seq((A, 0, Nil)))
+    assertResolvedEquals(operations, B, Seq.empty, Seq((B, 0, Nil)))
+    assertResolvedEquals(operations, C, Seq(C -> A, C -> B), Seq((C, 1, Nil), (A, 0, Nil), (B, 0, Nil)))
   }
 
   it should "resolve three dependent operation" in {
@@ -86,10 +86,10 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
     )
 
     val operations = Seq(op1, op2, op3, in, out)
-    assertResolvedEquals(operations, A, Set.empty, Set(A -> 0))
-    assertResolvedEquals(operations, B, Set(B -> A), Set(A -> 0, B -> 1))
-    assertResolvedEquals(operations, C, Set(C -> B, B -> A), Set(A -> 0, B -> 1, C -> 2))
-    assertResolvedEquals(operations, D, Set(D -> C, C -> B, B -> A), Set(A -> 0, B -> 1, C -> 2, D -> 3))
+    assertResolvedEquals(operations, A, Seq.empty, Seq((A, 0, Nil)))
+    assertResolvedEquals(operations, B, Seq(B -> A), Seq((A, 0, Nil), (B, 1, Nil)))
+    assertResolvedEquals(operations, C, Seq(C -> B, B -> A), Seq((A, 0, Nil), (B, 1, Nil), (C, 2, Nil)))
+    assertResolvedEquals(operations, D, Seq(D -> C, C -> B, B -> A), Seq((A, 0, Nil), (B, 1, Nil), (C, 2, Nil), (D, 3, Nil)))
   }
 
 
@@ -125,12 +125,12 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
 
     val operations = Seq(in, op1, op2, op3, out)
 
-    assertResolvedEquals(operations, C, Set(C -> A), Set(A -> 0, C -> 1))
-    assertResolvedEquals(operations, D, Set(D -> B), Set(B -> 0, D -> 1))
-    assertResolvedEquals(operations, E, Set(E -> C, E -> D, C -> A, D -> B),
-      Set(A -> 0, B -> 0, C -> 1, D -> 1, E -> 2))
-    assertResolvedEquals(operations, F, Set(F -> E, E -> C, E -> D, C -> A, D -> B),
-      Set(A -> 0, B -> 0, C -> 1, D -> 1, E -> 2, F -> 3))
+    assertResolvedEquals(operations, C, Seq(C -> A), Seq((A, 0, Nil), (C, 1, Nil)))
+    assertResolvedEquals(operations, D, Seq(D -> B), Seq((B, 0, Nil), (D, 1, Nil)))
+    assertResolvedEquals(operations, E, Seq(E -> C, E -> D, C -> A, D -> B),
+      Seq((A, 0, Nil), (B, 0, Nil), (C, 1, Nil), (D, 1, Nil), (E, 2, Nil)))
+    assertResolvedEquals(operations, F, Seq(F -> E, E -> C, E -> D, C -> A, D -> B),
+      Seq((A, 0, Nil), (B, 0, Nil), (C, 1, Nil), (D, 1, Nil), (E, 2, Nil), (F, 3, Nil)))
   }
 
   it should "resolve aggregation" in {
@@ -153,8 +153,8 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
 
     val operations = Seq(op, in, out)
 
-    assertResolvedEquals(operations, C, Set(C -> A), Set(A -> 0, C -> 1))
-    assertResolvedEquals(operations, D, Set(D -> B), Set(B -> 0, D -> 1))
+    assertResolvedEquals(operations, C, Seq(C -> A), Seq((A, 0, Nil), (C, 1, Nil)))
+    assertResolvedEquals(operations, D, Seq(D -> B), Seq((B, 0, Nil), (D, 1, Nil)))
   }
 
   it should "resolve generation" in {
@@ -177,7 +177,7 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
 
     val operations = Seq(op, in, out)
 
-    assertResolvedEquals(operations, B, Set(B -> A), Set(A -> 0, B -> 1))
+    assertResolvedEquals(operations, B, Seq(B -> A), Seq((A, 0, Nil), (B, 1, Nil)))
   }
 
   it should "resolve subquery alias" in {
@@ -199,9 +199,9 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
 
     val operations = Seq(op, in, out)
 
-    assertResolvedEquals(operations, B, Set.empty, Set(B -> 0))
-    assertResolvedEquals(operations, C, Set(C -> A), Set(A -> 0, C -> 1))
-    assertResolvedEquals(operations, D, Set(D -> B), Set(B -> 0, D -> 1))
+    assertResolvedEquals(operations, B, Seq.empty, Seq((B, 0, Nil)))
+    assertResolvedEquals(operations, C, Seq(C -> A), Seq((A, 0, Nil), (C, 1, Nil)))
+    assertResolvedEquals(operations, D, Seq(D -> B), Seq((B, 0, Nil), (D, 1, Nil)))
   }
 
   it should "resolve io operation correctly" in {
@@ -223,10 +223,10 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
 
     val operations = Seq(op, in, out)
 
-    assertResolvedEquals(operations, A, Set.empty, Set(A -> 1))
-    assertResolvedEquals(operations, B, Set.empty, Set(B -> 1))
-    assertResolvedEquals(operations, C, Set.empty, Set(C -> 1))
-    assertResolvedEquals(operations, D, Set(D -> A, D -> C), Set(A -> 1, C -> 1, D -> 2))
+    assertResolvedEquals(operations, A, Seq.empty, Seq((A, 1, Nil)))
+    assertResolvedEquals(operations, B, Seq.empty, Seq((B, 1, Nil)))
+    assertResolvedEquals(operations, C, Seq.empty, Seq((C, 1, Nil)))
+    assertResolvedEquals(operations, D, Seq(D -> A, D -> C), Seq((A, 1, Nil), (C, 1, Nil), (D, 2, Nil)))
   }
 
 
@@ -268,8 +268,8 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
 
     val operations = Seq(op1, op2, op3, op4, in, out)
 
-    assertResolvedEquals(operations, A, Set.empty, Set(A -> 0))
-    assertResolvedEquals(operations, B, Set(B -> A), Set(A -> 0, B -> 2))
+    assertResolvedEquals(operations, A, Seq.empty, Seq((A, 0, Seq(1))))
+    assertResolvedEquals(operations, B, Seq(B -> A), Seq((A, 0, Seq(1)), (B, 2, Nil)))
   }
 
   /**
@@ -341,11 +341,11 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
 
     val operations = Seq(opD, opE, joinDE, opF, opG, joinFG, inA, inB, inC, out)
 
-    assertResolvedEquals(operations, D, Set(D -> A), Set(D -> 3, A -> 0))
-    assertResolvedEquals(operations, E, Set(E -> B), Set(B -> 1, E -> 4))
-    assertResolvedEquals(operations, F, Set(F -> E, F -> D, D -> A, E -> B),
-      Set(A -> 0, B -> 1, D -> 3, E -> 4, F -> 6))
-    assertResolvedEquals(operations, G, Set(G -> C), Set(C -> 2, G -> 7))
+    assertResolvedEquals(operations, D, Seq(D -> A), Seq((D, 3, Nil), (A, 0, Nil)))
+    assertResolvedEquals(operations, E, Seq(E -> B), Seq((B, 1, Nil), (E, 4, Nil)))
+    assertResolvedEquals(operations, F, Seq(F -> E, F -> D, D -> A, E -> B),
+      Seq((A, 0, Nil), (B, 1, Nil), (D, 3, Seq(5)), (E, 4, Seq(5)), (F, 6, Nil)))
+    assertResolvedEquals(operations, G, Seq(G -> C), Seq((C, 2, Nil), (G, 7, Nil)))
   }
 
   /**
@@ -386,49 +386,32 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
       Seq(A, B))
 
 
-    val operations = Seq(op1, op2, join, in, out)
+    val operations = Seq(out, op1, op2, join, in)
 
-    assertResolvedEquals(operations, A, Set.empty, Set(A -> 0))
-    assertResolvedEquals(operations, B, Set(B -> A), Set(A -> 0, B -> 2))
+    assertResolvedEquals(operations, A, Seq.empty, Seq((A, 0, Seq(4, 3, 1))))
+    assertResolvedEquals(operations, B, Seq(B -> A), Seq((A, 0, Nil), (B, 2, Seq(4, 3))))
   }
 
 }
 
 object AttributeDependencySolverSpec extends Matchers {
   private val A, B, C, D, E, F, G = UUID.randomUUID()
-  private val attrNames = Map(A -> "A", B -> "B", C -> "C", D -> "D", E -> "E", F -> "F", G -> "G")
-
-  private def assertEqualEdges(actual: Array[AttributeTransition], expected: Set[(UUID, UUID)]): Unit = {
-
-    val actualEdges = actual.map(t => UUID.fromString(t.source) -> UUID.fromString(t.target))
-
-    def toPrettyNames(deps: Set[(UUID, UUID)]) = deps.map {
-      case (from, to) => attrNames(from) -> attrNames(to)
-    }
-
-    toPrettyNames(actualEdges.toSet) shouldEqual toPrettyNames(expected)
-  }
-
-  private def assertEqualNodes(actual: Array[AttributeNode], expected: Set[(UUID, Int)]): Unit = {
-
-    val actualNodes = actual.map(n => attrNames(UUID.fromString(n._id)) -> n.operationID)
-    val expectedNodes = expected.map(n => attrNames(n._1) -> n._2.toString)
-
-    actualNodes.toSet shouldEqual expectedNodes
-  }
 
   private def assertResolvedEquals(
     operations: Seq[OperationWithSchema],
     forAttribute: UUID,
-    edges: Set[(UUID, UUID)],
-    nodes: Set[(UUID, Int)]
+    edges: Seq[(UUID, UUID)],
+    nodes: Seq[(UUID, Int, Seq[Int])]
   ): Unit = {
 
     val maybeGraph = AttributeDependencySolver.resolveDependencies(operations, forAttribute)
     val graph = maybeGraph.getOrElse(fail())
 
-    assertEqualEdges(graph.edges, edges)
-    assertEqualNodes(graph.nodes, nodes)
+    val expected = edges.map { case (a, b) => AttributeTransition(a.toString, b.toString) }
+    val expectedNodes = nodes.map { case (a, b, c) => AttributeNode(a.toString, b.toString, c.map(_.toString)) }
+
+    graph.edges.toSet shouldEqual expected.toSet
+    graph.nodes.toSet shouldEqual expectedNodes.toSet
   }
 
   private def exprAsJava(expressions: Any): Any = expressions match {

@@ -29,7 +29,8 @@ object AttributeDependencySolver {
   private type AttributeId = UUID
   private type OperationId = String
 
-  private case class Node(id: AttributeId, operationId: OperationId)
+  private case class Node(id: AttributeId, originOpId: OperationId, transOpIds: Seq[OperationId])
+
   private case class Edge(from: AttributeId, to: AttributeId)
 
   def resolveDependencies(operations: Seq[OperationWithSchema], attributeID: UUID): Option[AttributeGraph] = {
@@ -39,27 +40,44 @@ object AttributeDependencySolver {
 
     def findDependencies(
       operation: OperationWithSchema,
-      lookingFor: Set[AttributeId]
+      attrIds: Set[AttributeId],
+      opsByAttrId: Map[AttributeId, Seq[OperationId]]
     ): (Set[Edge], Set[Node]) = {
 
-      val (attrsOriginInThisOp, otherAttributes) = {
-        val inputSchemas = inputSchemaResolver(operation)
-        val outputSchema = operation.schema
+      val (originAttrIds, transitiveAttrIds) = {
+        val inputSchema: Set[AttributeId] = inputSchemaResolver(operation).toSet.flatten
+        val outputSchema: Set[AttributeId] = operation.schema.toSet
+        val combinedSchema: Set[AttributeId] = inputSchema ++ outputSchema
 
-        lookingFor.partition(id => outputSchema.contains(id) && !inputSchemas.exists(_.contains(id)))
+        val myAttrsToProcess = attrIds.intersect(combinedSchema)
+        val (transitiveAttrs, originAttrs) = myAttrsToProcess.partition(inputSchema)
+
+        (originAttrs, transitiveAttrs)
       }
 
-      val newNodes = attrsOriginInThisOp.map(attId => Node(attId, operation._id))
+      val newNodes = originAttrIds.map(attId => {
+        val transOpIds = opsByAttrId.getOrElse(attId, Vector.empty)
+        Node(attId, operation._id, transOpIds)
+      })
 
       val dependencyMap = resolveDependencies(operation, inputSchemaResolver)
+
       val newEdges = dependencyMap
-        .filterKeys(attrsOriginInThisOp).toSet[(AttributeId, Set[AttributeId])]
-        .flatMap { case (k, v) => v.map(inv => Edge(k, inv)) }
+        .filterKeys(originAttrIds)
+        .toSet[(AttributeId, Set[AttributeId])]
+        .flatMap {
+          case (origAttrId, depAttrIds) =>
+            depAttrIds.map(depAttrId => Edge(origAttrId, depAttrId))
+        }
 
-      val newLookingFor: Set[AttributeId] = otherAttributes union newEdges.map(_.to)
+      val attrsToProcess: Set[AttributeId] = attrIds -- originAttrIds ++ newEdges.map(_.to)
 
-      val childResults = filterChildrenForAttributes(operation, newLookingFor)
-        .map(findDependencies(_, newLookingFor))
+      val newTransitiveOpsByAttrId: Map[AttributeId, Seq[OperationId]] = transitiveAttrIds
+        .map(id => id -> (opsByAttrId.getOrElse(id, Vector.empty) :+ operation._id))
+        .toMap
+
+      val childResults = filterChildrenForAttributes(operation, attrsToProcess)
+        .map(findDependencies(_, attrsToProcess, opsByAttrId -- originAttrIds ++ newTransitiveOpsByAttrId))
 
       val allResults = childResults :+ (newEdges, newNodes)
 
@@ -84,17 +102,17 @@ object AttributeDependencySolver {
     val maybeStartOperation = operations.find(_.schema.contains(attributeID))
 
     maybeStartOperation.map { startOperation =>
-      val (edges, nodes) = findDependencies(startOperation, Set(attributeID))
+      val (edges, nodes) = findDependencies(startOperation, Set(attributeID), Map.empty)
 
       val attEdges = edges.map(e => AttributeTransition(e.from.toString, e.to.toString))
-      val attNodes = nodes.map(n => AttributeNode(n.id.toString, n.operationId))
+      val attNodes = nodes.map(n => AttributeNode(n.id.toString, n.originOpId, n.transOpIds))
 
       AttributeGraph(attNodes.toArray, attEdges.toArray)
     }
   }
 
   private def resolveDependencies(op: OperationWithSchema, inputSchemasOf: OperationWithSchema => Seq[Array[UUID]]):
-    Map[UUID, Set[UUID]] =
+  Map[AttributeId, Set[AttributeId]] =
     op.extra("name") match {
       case "Project" => resolveExpressionList(op.params("projectList"), op.schema)
       case "Aggregate" => resolveExpressionList(op.params("aggregateExpressions"), op.schema)
@@ -135,7 +153,7 @@ object AttributeDependencySolver {
   }
 
   private def createInputSchemaResolver(operations: Seq[OperationWithSchema]):
-    OperationWithSchema => Seq[Array[UUID]] = {
+  OperationWithSchema => Seq[Array[UUID]] = {
 
     val operationMap = operations.map(op => op._id -> op).toMap
 
