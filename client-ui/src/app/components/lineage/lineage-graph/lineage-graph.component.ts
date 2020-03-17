@@ -29,6 +29,7 @@ import {operationColorCodes, operationIconCodes} from 'src/app/util/execution-pl
 import {OperationType} from 'src/app/model/types/operationType';
 import {CytoscapeGraphVM} from "../../../model/viewModels/cytoscape/cytoscapeGraphVM";
 import {AttributeGraph} from "../../../generated/models/attribute-graph";
+import * as _ from 'lodash'
 
 
 @Component({
@@ -100,7 +101,18 @@ export class LineageGraphComponent implements OnInit, OnChanges, AfterViewInit {
 
   private refreshAttributeGraph() {
     this.cytograph && this.cytograph.cy && this.cytograph.cy.ready(() => {
-      console.log("[ATTRIBUTE GRAPH]", this.attributeGraph)
+      const hltedNodeIds = this.attributeGraph &&
+        new Set(_.flatMap(this.attributeGraph.nodes, v => [v.originOpId].concat(v.transOpIds)))
+
+      const [hltedEdges, plainEdges] = hltedNodeIds
+        ? _.partition(this.cytograph.cy.edges(), e => {
+          const ed = e.data()
+          return hltedNodeIds.has(ed.source) && hltedNodeIds.has(ed.target)
+        })
+        : [[], this.cytograph.cy.edges()]
+
+      hltedEdges.forEach(e => e.style({lineColor: "red", width: 20}))
+      plainEdges.forEach(e => e.style({lineColor: "silver", width: 7}))
     })
   }
 }
