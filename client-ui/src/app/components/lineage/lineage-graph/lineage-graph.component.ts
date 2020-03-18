@@ -31,6 +31,26 @@ import {CytoscapeGraphVM} from "../../../model/viewModels/cytoscape/cytoscapeGra
 import {AttributeGraph} from "../../../generated/models/attribute-graph";
 import * as _ from 'lodash'
 
+const LINE_WIDTH = 10
+const LINE_COLOR_HIGHLIGHTED = 'orange'
+const LINE_COLOR_PLANE = 'lightgray'
+
+const NODE_STYLE_PLANE = {
+  'border-width': 0,
+}
+const NODE_STYLE_HIGHLIGHTED = {
+  'border-color': LINE_COLOR_HIGHLIGHTED,
+  'border-width': LINE_WIDTH,
+}
+const EDGE_STYLE_PLANE = {
+  'line-color': LINE_COLOR_PLANE,
+  'target-arrow-color': LINE_COLOR_PLANE,
+  'width': LINE_WIDTH,
+}
+const EDGE_STYLE_HIGHLIGHTED = {
+  'line-color': LINE_COLOR_HIGHLIGHTED,
+  'target-arrow-color': LINE_COLOR_HIGHLIGHTED,
+}
 
 @Component({
   selector: 'lineage-graph',
@@ -78,8 +98,11 @@ export class LineageGraphComponent implements OnInit, OnChanges, AfterViewInit {
     this.cytograph.cy.layout(this.layout).run()
 
     this.cytograph.cy.ready(() => {
-      this.cytograph.cy.style().selector('core').css({'active-bg-size': 0})
-      this.cytograph.cy.style().selector('edge').css({'width': 7})
+      this.cytograph.cy.style()
+        .selector('core').style({'active-bg-size': 0})
+        .selector('edge').style(EDGE_STYLE_PLANE)
+        .selector('node').style(NODE_STYLE_PLANE)
+        .update()
       this.cytograph.cy.on('mouseover', 'node', e => e.originalEvent.target.style.cursor = 'pointer')
       this.cytograph.cy.on('mouseout', 'node', e => e.originalEvent.target.style.cursor = '')
       this.cytograph.cy.on('click', event => {
@@ -101,18 +124,20 @@ export class LineageGraphComponent implements OnInit, OnChanges, AfterViewInit {
 
   private refreshAttributeGraph() {
     this.cytograph && this.cytograph.cy && this.cytograph.cy.ready(() => {
-      const hltedNodeIds = this.attributeGraph &&
-        new Set(_.flatMap(this.attributeGraph.nodes, v => [v.originOpId].concat(v.transOpIds)))
+      const hltedNodeIds = this.attributeGraph
+        ? new Set(_.flatMap(this.attributeGraph.nodes, v => [v.originOpId].concat(v.transOpIds)))
+        : new Set()
 
-      const [hltedEdges, plainEdges] = hltedNodeIds
-        ? _.partition(this.cytograph.cy.edges(), e => {
-          const ed = e.data()
-          return hltedNodeIds.has(ed.source) && hltedNodeIds.has(ed.target)
-        })
-        : [[], this.cytograph.cy.edges()]
-
-      hltedEdges.forEach(e => e.style({lineColor: "red", width: 20}))
-      plainEdges.forEach(e => e.style({lineColor: "silver", width: 7}))
+      this.cytograph.cy.edges().forEach(e => {
+        const ed = e.data()
+        const hlt = hltedNodeIds.has(ed.source) && hltedNodeIds.has(ed.target)
+        e.style(hlt ? EDGE_STYLE_HIGHLIGHTED : EDGE_STYLE_PLANE)
+      })
+      this.cytograph.cy.nodes().forEach(v => {
+        const vd = v.data()
+        const hlt = hltedNodeIds.has(vd.id)
+        v.style(hlt ? NODE_STYLE_HIGHLIGHTED : NODE_STYLE_PLANE)
+      })
     })
   }
 }
