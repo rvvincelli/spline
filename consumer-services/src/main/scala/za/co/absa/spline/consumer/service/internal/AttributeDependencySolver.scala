@@ -18,6 +18,7 @@ package za.co.absa.spline.consumer.service.internal
 
 import java.util.UUID
 
+import za.co.absa.spline.common.graph.DAGTraversals
 import za.co.absa.spline.consumer.service.internal.model.OperationWithSchema
 import za.co.absa.spline.consumer.service.model.{AttributeGraph, AttributeNode, AttributeTransition}
 
@@ -35,8 +36,7 @@ object AttributeDependencySolver {
 
   def resolveDependencies(operations: Seq[OperationWithSchema], attributeID: UUID): Option[AttributeGraph] = {
 
-    val operationsMap = operations.map(op => op._id -> op).toMap
-    val inputSchemaResolver = createInputSchemaResolver(operations)
+    val operationById: OperationId => OperationWithSchema = operations.map(op => op._id -> op).toMap
 
     def findDependencies(
       operation: OperationWithSchema,
@@ -45,7 +45,7 @@ object AttributeDependencySolver {
     ): (Set[Edge], Set[Node]) = {
 
       val (originAttrIds, transitiveAttrIds) = {
-        val inputSchema: Set[AttributeId] = inputSchemaResolver(operation).toSet.flatten
+        val inputSchema: Set[AttributeId] = operation.childIds.map(operationById(_).schema).toSet.flatten
         val outputSchema: Set[AttributeId] = operation.schema.toSet
         val combinedSchema: Set[AttributeId] = inputSchema ++ outputSchema
 
@@ -60,7 +60,7 @@ object AttributeDependencySolver {
         Node(attId, operation._id, transOpIds)
       })
 
-      val dependencyMap = resolveDependencies(operation, inputSchemaResolver)
+      val dependencyMap = resolveDependencies(operation, _.childIds.map(operationById(_).schema))
 
       val newEdges = dependencyMap
         .filterKeys(originAttrIds)
@@ -89,7 +89,7 @@ object AttributeDependencySolver {
     def filterChildrenForAttributes(operation: OperationWithSchema, attributes: Set[AttributeId]) =
       operation
         .childIds
-        .map(operationsMap)
+        .map(operationById)
         .filter(_.schema.exists(attributes))
 
     def mergeResults(x: (Set[Edge], Set[Node]), y: (Set[Edge], Set[Node])): (Set[Edge], Set[Node]) = {
@@ -99,20 +99,27 @@ object AttributeDependencySolver {
       (x1 union y1, x2 union y2)
     }
 
-    val maybeStartOperation = operations.find(_.schema.contains(attributeID))
-
-    maybeStartOperation.map { startOperation =>
-      val (edges, nodes) = findDependencies(startOperation, Set(attributeID), Map.empty)
-
+    for {
+      rootOp <- operations.headOption
+      startOp <- DAGTraversals.dfs[OperationWithSchema, Option[OperationWithSchema]](
+        rootOp,
+        None,
+        _.childIds.map(operationById),
+        _.schema.contains(attributeID),
+        { case (_, op) => (Some(op), false) }
+      )
+    } yield {
+      val (edges, nodes) = findDependencies(startOp, Set(attributeID), Map.empty)
       val attEdges = edges.map(e => AttributeTransition(e.from.toString, e.to.toString))
       val attNodes = nodes.map(n => AttributeNode(n.id.toString, n.originOpId, n.transOpIds))
-
       AttributeGraph(attNodes.toArray, attEdges.toArray)
     }
   }
 
-  private def resolveDependencies(op: OperationWithSchema, inputSchemasOf: OperationWithSchema => Seq[Array[UUID]]):
-  Map[AttributeId, Set[AttributeId]] =
+  private def resolveDependencies(
+    op: OperationWithSchema,
+    inputSchemasOf: OperationWithSchema => Seq[Array[UUID]]
+  ): Map[AttributeId, Set[AttributeId]] =
     op.extra("name") match {
       case "Project" => resolveExpressionList(op.params("projectList"), op.schema)
       case "Aggregate" => resolveExpressionList(op.params("aggregateExpressions"), op.schema)
@@ -124,7 +131,7 @@ object AttributeDependencySolver {
   private def resolveExpressionList(exprList: Any, schema: Seq[UUID]): Map[UUID, Set[UUID]] =
     asScalaListOfMaps[String, Any](exprList)
       .zip(schema)
-      .map { case (expr, attrId) => attrId -> toAttrDependencies(expr) }
+      .map { case (expr, attrId) => attrId -> expressionDependencies(expr) }
       .toMap
 
   private def resolveSubqueryAlias(inputSchema: Seq[UUID], outputSchema: Seq[UUID]): Map[UUID, Set[UUID]] =
@@ -134,36 +141,22 @@ object AttributeDependencySolver {
       .toMap
 
   private def resolveGenerator(op: OperationWithSchema): Map[UUID, Set[UUID]] = {
-
     val expression = asScalaMap[String, Any](op.params("generator"))
-    val dependencies = toAttrDependencies(expression)
-
-    val keyId = asScalaListOfMaps[String, String](op.params("generatorOutput"))
-      .head("refId")
-
+    val dependencies = expressionDependencies(expression)
+    val keyId = asScalaListOfMaps[String, String](op.params("generatorOutput")).head("refId")
     Map(UUID.fromString(keyId) -> dependencies)
   }
 
-  private def toAttrDependencies(expr: mutable.Map[String, Any]): Set[UUID] = expr("_typeHint") match {
-    case "expr.AttrRef" => Set(UUID.fromString(expr("refId").asInstanceOf[String]))
-    case "expr.Alias" => toAttrDependencies(asScalaMap[String, Any](expr("child")))
-    case _ if expr.contains("children") => asScalaListOfMaps[String, Any](expr("children"))
-      .map(toAttrDependencies).reduce(_ union _)
-    case _ => Set.empty
-  }
-
-  private def createInputSchemaResolver(operations: Seq[OperationWithSchema]):
-  OperationWithSchema => Seq[Array[UUID]] = {
-
-    val operationMap = operations.map(op => op._id -> op).toMap
-
-    op: OperationWithSchema => {
-      if (op.childIds.isEmpty) {
-        Seq(Array.empty)
-      } else {
-        op.childIds.map(operationMap(_).schema)
-      }
-    }
+  private def expressionDependencies(expr: mutable.Map[String, Any]): Set[AttributeId] = expr("_typeHint") match {
+    case "expr.AttrRef" =>
+      Set(UUID.fromString(expr("refId").asInstanceOf[String]))
+    case "expr.Alias" =>
+      expressionDependencies(asScalaMap[String, Any](expr("child")))
+    case _ =>
+      val children = expr.getOrElse("children", java.util.Collections.EMPTY_LIST)
+      asScalaListOfMaps[String, Any](children)
+        .toSet
+        .flatMap(expressionDependencies)
   }
 
   private def asScalaMap[K, V](javaMap: Any) =

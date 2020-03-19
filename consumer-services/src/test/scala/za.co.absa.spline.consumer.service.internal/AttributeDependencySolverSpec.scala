@@ -85,11 +85,11 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
       Seq(D)
     )
 
-    val operations = Seq(op1, op2, op3, in, out)
+    val operations = Seq(out, op1, op2, op3, in)
     assertResolvedEquals(operations, A, Seq.empty, Seq((A, 0, Nil)))
     assertResolvedEquals(operations, B, Seq(B -> A), Seq((A, 0, Nil), (B, 1, Nil)))
     assertResolvedEquals(operations, C, Seq(C -> B, B -> A), Seq((A, 0, Nil), (B, 1, Nil), (C, 2, Nil)))
-    assertResolvedEquals(operations, D, Seq(D -> C, C -> B, B -> A), Seq((A, 0, Nil), (B, 1, Nil), (C, 2, Nil), (D, 3, Nil)))
+    assertResolvedEquals(operations, D, Seq(D -> C, C -> B, B -> A), Seq((A, 0, Nil), (B, 1, Nil), (C, 2, Nil), (D, 3, Seq(4))))
   }
 
 
@@ -123,14 +123,14 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
       Seq(F)
     )
 
-    val operations = Seq(in, op1, op2, op3, out)
+    val operations = Seq(out, in, op1, op2, op3)
 
     assertResolvedEquals(operations, C, Seq(C -> A), Seq((A, 0, Nil), (C, 1, Nil)))
     assertResolvedEquals(operations, D, Seq(D -> B), Seq((B, 0, Nil), (D, 1, Nil)))
     assertResolvedEquals(operations, E, Seq(E -> C, E -> D, C -> A, D -> B),
       Seq((A, 0, Nil), (B, 0, Nil), (C, 1, Nil), (D, 1, Nil), (E, 2, Nil)))
     assertResolvedEquals(operations, F, Seq(F -> E, E -> C, E -> D, C -> A, D -> B),
-      Seq((A, 0, Nil), (B, 0, Nil), (C, 1, Nil), (D, 1, Nil), (E, 2, Nil), (F, 3, Nil)))
+      Seq((A, 0, Nil), (B, 0, Nil), (C, 1, Nil), (D, 1, Nil), (E, 2, Nil), (F, 3, Seq(4))))
   }
 
   it should "resolve aggregation" in {
@@ -266,10 +266,10 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
       Seq(B))
 
 
-    val operations = Seq(op1, op2, op3, op4, in, out)
+    val operations = Seq(out, op1, op2, op3, op4, in)
 
     assertResolvedEquals(operations, A, Seq.empty, Seq((A, 0, Seq(1))))
-    assertResolvedEquals(operations, B, Seq(B -> A), Seq((A, 0, Seq(1)), (B, 2, Nil)))
+    assertResolvedEquals(operations, B, Seq(B -> A), Seq((A, 0, Seq(1)), (B, 2, Seq(5, 4, 3))))
   }
 
   /**
@@ -339,13 +339,13 @@ class AttributeDependencySolverSpec extends AnyFlatSpec with Matchers {
       Seq(F, G))
 
 
-    val operations = Seq(opD, opE, joinDE, opF, opG, joinFG, inA, inB, inC, out)
+    val operations = Seq(out, opD, opE, joinDE, opF, opG, joinFG, inA, inB, inC)
 
-    assertResolvedEquals(operations, D, Seq(D -> A), Seq((D, 3, Nil), (A, 0, Nil)))
-    assertResolvedEquals(operations, E, Seq(E -> B), Seq((B, 1, Nil), (E, 4, Nil)))
+    assertResolvedEquals(operations, D, Seq(D -> A), Seq((D, 3, Seq(5)), (A, 0, Nil)))
+    assertResolvedEquals(operations, E, Seq(E -> B), Seq((B, 1, Nil), (E, 4, Seq(5))))
     assertResolvedEquals(operations, F, Seq(F -> E, F -> D, D -> A, E -> B),
-      Seq((A, 0, Nil), (B, 1, Nil), (D, 3, Seq(5)), (E, 4, Seq(5)), (F, 6, Nil)))
-    assertResolvedEquals(operations, G, Seq(G -> C), Seq((C, 2, Nil), (G, 7, Nil)))
+      Seq((A, 0, Nil), (B, 1, Nil), (D, 3, Seq(5)), (E, 4, Seq(5)), (F, 6, Seq(9,8))))
+    assertResolvedEquals(operations, G, Seq(G -> C), Seq((C, 2, Nil), (G, 7, Seq(9,8))))
   }
 
   /**

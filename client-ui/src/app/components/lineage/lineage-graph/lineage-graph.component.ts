@@ -127,6 +127,8 @@ export class LineageGraphComponent implements OnInit, OnChanges, AfterViewInit {
       const hltedNodeIds = this.attributeGraph
         ? new Set(_.flatMap(this.attributeGraph.nodes, v => [v.originOpId].concat(v.transOpIds)))
         : new Set()
+      console.log("[GRAPH]", this.attributeGraph)
+      console.log("[NODES]", hltedNodeIds)
 
       this.cytograph.cy.edges().forEach(e => {
         const ed = e.data()
