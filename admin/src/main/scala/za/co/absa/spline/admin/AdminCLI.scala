@@ -21,6 +21,7 @@ import scopt.{OptionDef, OptionParser}
 import za.co.absa.spline.admin.AdminCLI.AdminCLIConfig
 import za.co.absa.spline.common.SplineBuildInfo
 import za.co.absa.spline.persistence.{ArangoConnectionURL, ArangoInit}
+import za.co.absa.spline.persistence.ArangoConnectionURL.{ArangoDbScheme, ArangoSecureDbScheme}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -45,9 +46,12 @@ class AdminCLI(arangoInit: ArangoInit) {
         opt[String]('t', "timeout")
           text s"Timeout in format `<length><unit>` or `Inf` for infinity. Default is ${DBInit().timeout}"
           action { case (s, c@AdminCLIConfig(cmd: DBCommand)) => c.copy(cmd.timeout = Duration(s)) },
+        opt[Unit]('k', "insecure")
+          text s"Allow insecure server connections when using SSL; disallowed by default"
+          action { case (_, c@AdminCLIConfig(cmd: DBCommand)) => c.copy(cmd.insecure = true) },
         arg[String]("<db_url>")
           required()
-          text "ArangoDB connection string in the format: arangodb://[user[:password]@]host[:port]/database"
+          text s"ArangoDB connection string in the format: $ArangoDbScheme|$ArangoSecureDbScheme://[user[:password]@]host[:port]/database"
           action { case (url, c@AdminCLIConfig(cmd: DBCommand)) => c.copy(cmd.dbUrl = url) })
 
       (cmd("db-init")
@@ -70,6 +74,10 @@ class AdminCLI(arangoInit: ArangoInit) {
           failure("No command given")
         case AdminCLIConfig(cmd: DBCommand) if cmd.dbUrl == null =>
           failure("DB connection string is required")
+        case AdminCLIConfig(cmd: DBCommand) if cmd.dbUrl.startsWith(ArangoSecureDbScheme) && !cmd.insecure =>
+          failure("At the moment, only unsecure SSL is supported; when using the secure scheme, please add the -k option to skip server certificate verification altogether")
+        case AdminCLIConfig(cmd: DBInit) if cmd.force && cmd.skip =>
+          failure("Options '--force' and '--skip' cannot be used together")
         case _ =>
           success
       }
@@ -81,9 +89,16 @@ class AdminCLI(arangoInit: ArangoInit) {
       .cmd
 
     command match {
-      case DBInit(url, timeout, force) =>
-        Await.result(arangoInit.initialize(ArangoConnectionURL(url), dropIfExists = force), timeout)
-      case DBUpgrade(url, timeout) =>
+      case DBInit(url, timeout, _, force, skip) =>
+        val onExistsAction = (force, skip) match {
+          case (true, false) => Drop
+          case (false, true) => Skip
+          case (false, false) => Fail
+        }
+        val wasInitialized = Await.result(arangoInit.initialize(ArangoConnectionURL(url), onExistsAction), timeout)
+        if (!wasInitialized) println(ansi"%yellow{Skipped. DB is already initialized}")
+
+      case DBUpgrade(url, timeout, _) =>
         Await.result(arangoInit.upgrade(ArangoConnectionURL(url)), timeout)
     }
 
