@@ -59,6 +59,7 @@ class ExecutionEventRepositoryImpl @Autowired()(db: ArangoDatabaseAsync) extends
 
     val eventualArangoCursorAsync = db.queryAs[ExecutionEventInfo](
       """
+        |WITH operation, executionPlan
         |FOR ee IN progress
         |    FILTER ee._created <= @asAtTime
         |        && ee.timestamp >= @timestampStart
