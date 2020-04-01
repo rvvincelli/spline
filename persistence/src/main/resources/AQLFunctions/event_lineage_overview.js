@@ -59,7 +59,6 @@
         }
 
         const startSource = db._query(aql`
-            WITH dataSource, executionPlan
             RETURN FIRST(
                 FOR ds IN 2 OUTBOUND ${startEvent} progressOf, affects 
                     RETURN {
@@ -79,7 +78,6 @@
                     .forEach(writeEvent => traverse(writeEvent, depth - 1))
             }
             const partialGraph = db._query(aql`
-                WITH executionPlan, dataSource
                 LET exec = FIRST(FOR ex IN 1 OUTBOUND ${event} progressOf RETURN ex)
                 LET affectedDsEdge = FIRST(FOR v, e IN 1 OUTBOUND exec affects RETURN e)
                 LET rdsWithInEdges = (FOR ds, e IN 1 OUTBOUND exec depends RETURN [ds, e])

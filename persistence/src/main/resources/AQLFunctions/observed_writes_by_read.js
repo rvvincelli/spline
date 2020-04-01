@@ -18,7 +18,6 @@
     const {db, aql} = require('@arangodb');
 
     return readEvent && db._query(aql`
-        WITH dataSource, executionPlan, operation, progress
         LET readTime = ${readEvent}.timestamp
         FOR rds IN 2 OUTBOUND ${readEvent} progressOf, depends
             LET maybeObservedOverwrite = SLICE(
