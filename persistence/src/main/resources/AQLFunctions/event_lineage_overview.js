@@ -59,7 +59,6 @@
         }
 
         const startSource = db._query(aql`
-            WITH dataSource
             RETURN FIRST(
                 FOR ds IN 2 OUTBOUND ${startEvent} progressOf, affects 
                     RETURN {
