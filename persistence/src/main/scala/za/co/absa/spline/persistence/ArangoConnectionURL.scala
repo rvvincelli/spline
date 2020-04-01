@@ -20,7 +20,6 @@ import java.net.{MalformedURLException, URI}
 
 import org.apache.commons.lang3.StringUtils.trimToNull
 
-import za.co.absa.commons.lang.OptionImplicits.StringWrapper
 import za.co.absa.spline.persistence.ArangoConnectionURL.{ArangoDbScheme, ArangoSecureDbScheme}
 
 import scala.util.matching.Regex
@@ -52,14 +51,19 @@ object ArangoConnectionURL {
     new Regex(s"$scheme://(?:$user(?::$password)?@)?$host(?::$port)?/$dbName")
   }
 
+  def nonBlankOption(s: String): Option[String] =
+      if (s == null) None
+      else if (s.trim.isEmpty) None
+      else Some(s)
+
   def apply(url: String): ArangoConnectionURL = try {
     val arangoConnectionUrlRegex(scheme, user, password, host, port, dbName) = url
     ArangoConnectionURL(
       scheme = scheme,
-      user = user.nonBlankOption,
-      password = password.nonBlankOption,
+      user = nonBlankOption(user),
+      password = nonBlankOption(password),
       host = host,
-      port = port.nonBlankOption.map(_.toInt) getOrElse DefaultPort,
+      port = nonBlankOption(port).map(_.toInt) getOrElse DefaultPort,
       dbName = dbName
     )
   } catch {

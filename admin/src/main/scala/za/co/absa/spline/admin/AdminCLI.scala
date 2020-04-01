@@ -89,15 +89,8 @@ class AdminCLI(arangoInit: ArangoInit) {
       .cmd
 
     command match {
-      case DBInit(url, timeout, _, force, skip) =>
-        val onExistsAction = (force, skip) match {
-          case (true, false) => Drop
-          case (false, true) => Skip
-          case (false, false) => Fail
-        }
-        val wasInitialized = Await.result(arangoInit.initialize(ArangoConnectionURL(url), onExistsAction), timeout)
-        if (!wasInitialized) println(ansi"%yellow{Skipped. DB is already initialized}")
-
+      case DBInit(url, timeout, _, force, _) =>
+        Await.result(arangoInit.initialize(ArangoConnectionURL(url), dropIfExists = force), timeout)
       case DBUpgrade(url, timeout, _) =>
         Await.result(arangoInit.upgrade(ArangoConnectionURL(url)), timeout)
     }
